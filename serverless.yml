@@ -114,7 +114,7 @@ functions:
     environment: 
       STAGE: ${self:provider.stage}
       API_ID:
-        Ref: WebsocketApi
+        Ref: WebsocketsApi
     handler: src/lambda/s3/sendNotifications.handler
 
   ConnectHandler:
