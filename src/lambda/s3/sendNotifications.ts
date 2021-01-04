@@ -55,5 +55,6 @@ async function sendMessageToClient(connectionId, payload) {
               id: connectionId
             }
           }).promise()
+        }   
     }
 }
