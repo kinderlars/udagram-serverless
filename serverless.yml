@@ -48,6 +48,10 @@ provider:
         - s3:PutObject
         - s3:GetObject
       Resource: arn:aws:s3:::${self:provider.environment.IMAGES_S3_BUCKET}/*
+    - Effect: Allow
+      Action: 
+        - es:ESHttpPost
+      Resource: arn:aws:es:${self:provider.region}:*:domain/*
 
 custom:
   documentation:
@@ -277,7 +281,7 @@ resources:
               Condition:
                 IpAddress:
                   aws:SourceIp:
-                    - "88.128.92.49/32"
+                    - "82.212.31.86/32"
 
     
 
