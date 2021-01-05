@@ -20,6 +20,7 @@ provider:
     CONNECTIONS_TABLE: Connections-${self:provider.stage}
     IMAGES_S3_BUCKET: megustacc-serverless-udagram-images-${self:provider.stage}
     SIGNED_URL_EXPIRATION: 300
+    THUMBNAILS_S3_BUCKET: megustacc-serverless-udagram-thumbnail-${self:provider.stage}
 
   iamRoleStatements:
     - Effect: Allow
@@ -52,6 +53,10 @@ provider:
       Action: 
         - es:ESHttpPost
       Resource: arn:aws:es:${self:provider.region}:*:domain/*
+    - Effect: Allow
+      Action:
+        - s3:PutObject
+      Resource: "arn:aws:s3:::${self:provider.environment.THUMBNAILS_S3_BUCKET}/*"
 
 custom:
   topicName: imagesTopic-${self:provider.stage}
@@ -131,6 +136,19 @@ functions:
                 - Ref: AWS::AccountId
                 - ${self:custom.topicName}
           topicName: ${self:custom.topicName}
+  
+  ResizeImage:
+    handler: src/lambda/s3/resizeImage.handler
+    events:
+    - sns:
+        arn:
+          Fn::Join:
+            - ':'
+            - - arn:aws:sns
+              - Ref: AWS::Region
+              - Ref: AWS::AccountId
+              - ${self:custom.topicName}
+        topicName: ${self:custom.topicName}
 
   ConnectHandler:
     handler: src/lambda/ws/connect.handler
@@ -205,12 +223,13 @@ resources:
 
     AttachmentsBucket:
       Type: AWS::S3::Bucket
+      DependsOn: SNSTopicPolicy
       Properties:
         BucketName: ${self:provider.environment.IMAGES_S3_BUCKET}
         NotificationConfiguration:
-          LambdaConfigurations:
-            - Event: s3:ObjectCreated:*
-              Function: !GetAtt SendUploadNotificationsLambdaFunction.Arn
+          TopicConfigurations:
+            - Event: s3:ObjectCreated:Put
+              Topic: !Ref ImagesTopic
         CorsConfiguration:
           CorsRules:
             -
@@ -226,14 +245,14 @@ resources:
                 - HEAD
               MaxAge: 3000
     
-    SendUploadNotificationsPermission:
-      Type: AWS::Lambda::Permission
-      Properties:
-        FunctionName: !Ref SendUploadNotificationsLambdaFunction
-        Principal: s3.amazonaws.com
-        Action: lambda:InvokeFunction
-        SourceAccount: !Ref AWS::AccountId
-        SourceArn: arn:aws:s3:::${self:provider.environment.IMAGES_S3_BUCKET}
+    # SendUploadNotificationsPermission:
+    #   Type: AWS::Lambda::Permission
+    #   Properties:
+    #     FunctionName: !Ref SendUploadNotificationsLambdaFunction
+    #     Principal: s3.amazonaws.com
+    #     Action: lambda:InvokeFunction
+    #     SourceAccount: !Ref AWS::AccountId
+    #     SourceArn: arn:aws:s3:::${self:provider.environment.IMAGES_S3_BUCKET}
 
     BucketPolicy:
       Type: AWS::S3::BucketPolicy
@@ -248,6 +267,11 @@ resources:
               Action: 's3:GetObject'
               Resource: 'arn:aws:s3:::${self:provider.environment.IMAGES_S3_BUCKET}/*'
         Bucket: !Ref AttachmentsBucket
+
+    ThumbnailsBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:provider.environment.THUMBNAILS_S3_BUCKET}
 
     WebSocketConnectionsDynamoDBTable:
       Type: AWS::DynamoDB::Table
@@ -316,6 +340,7 @@ resources:
                 IpAddress:
                   aws:SourceIp:
                     - "82.212.31.86/32"
+                    - "88.128.92.187/32"
 
     
 
