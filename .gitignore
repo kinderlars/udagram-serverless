@@ -1,0 +1,5 @@
+.serverless
+node_modules
+.webpack
+.eslintcache
+client/src/config.ts
