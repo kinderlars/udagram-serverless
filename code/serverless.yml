@@ -21,6 +21,8 @@ provider:
     IMAGES_S3_BUCKET: megustacc-serverless-udagram-images-${self:provider.stage}
     SIGNED_URL_EXPIRATION: 300
     THUMBNAILS_S3_BUCKET: megustacc-serverless-udagram-thumbnail-${self:provider.stage}
+    AUTH_0_SECRET_ID: Auth0Secret-${self:provider.stage}
+    AUTH_0_SECRET_FIELD: Auth0Secret
 
   iamRoleStatements:
     - Effect: Allow
@@ -57,6 +59,11 @@ provider:
       Action:
         - s3:PutObject
       Resource: "arn:aws:s3:::${self:provider.environment.THUMBNAILS_S3_BUCKET}/*"
+    - Effect: Allow
+      Action:
+        - kms:Decrypt
+      Resource: !GetAtt KMSKey.Arn
+
 
 custom:
   topicName: imagesTopic-${self:provider.stage}
@@ -91,6 +98,7 @@ functions:
           method: post
           path: groups
           cors: true
+          authorizer: RS256Auth
           reqValidatorName: RequestBodyValidator
           documentation:
             summary: Create a new group
@@ -113,6 +121,7 @@ functions:
           method: post
           path: groups/{groupId}/images
           cors: true
+          authorizer: RS256Auth
           reqValidatorName: RequestBodyValidator
           documentation:
             summary: Create a new image
@@ -311,36 +320,69 @@ resources:
         DisplayName: Image bucket topic
         TopicName: ${self:custom.topicName}
 
-    ImagesSearch:
-      Type: AWS::Elasticsearch::Domain
+    # ImagesSearch:
+    #   Type: AWS::Elasticsearch::Domain
+    #   Properties:
+    #     ElasticsearchVersion: '6.3'
+    #     DomainName: udagram-images-search-${self:provider.stage}
+    #     ElasticsearchClusterConfig:
+    #       DedicatedMasterEnabled: false
+    #       InstanceCount: '1'
+    #       ZoneAwarenessEnabled: false
+    #       InstanceType: t2.small.elasticsearch
+    #     EBSOptions:
+    #       EBSEnabled: true
+    #       Iops: 0
+    #       VolumeSize: 10
+    #       VolumeType: 'gp2'
+
+    #     AccessPolicies:
+    #       Version: "2012-10-17"
+    #       Statement:
+    #         -
+    #           Effect: "Allow"
+    #           Principal:
+    #             AWS: "*"
+    #           Action: "es:ESHttp*"
+    #           Resource: "*"
+    #           Condition:
+    #             IpAddress:
+    #               aws:SourceIp:
+    #                 - "82.212.31.86/32"
+    #                 - "88.128.92.187/32"
+
+    KMSKey:
+      Type: AWS::KMS::Key
       Properties:
-        ElasticsearchVersion: '6.3'
-        DomainName: udagram-images-search-${self:provider.stage}
-        ElasticsearchClusterConfig:
-          DedicatedMasterEnabled: false
-          InstanceCount: '1'
-          ZoneAwarenessEnabled: false
-          InstanceType: t2.small.elasticsearch
-        EBSOptions:
-          EBSEnabled: true
-          Iops: 0
-          VolumeSize: 10
-          VolumeType: 'gp2'
-
-        AccessPolicies:
-          Version: "2012-10-17"
+        Description: KMS key to encrypt Auth0 secret
+        KeyPolicy:
+          Version: '2012-10-17'
+          Id: key-default-1
           Statement:
-            -
-              Effect: "Allow"
+            - Sid: Allow administration of the key
+              Effect: Allow
               Principal:
-                AWS: "*"
-              Action: "es:ESHttp*"
-              Resource: "*"
-              Condition:
-                IpAddress:
-                  aws:SourceIp:
-                    - "82.212.31.86/32"
-                    - "88.128.92.187/32"
+                AWS:
+                  Fn::Join:
+                  - ':'
+                  - - 'arn:aws:iam:'
+                    - Ref: AWS::AccountId
+                    - 'root'
+              Action:
+                - 'kms:*'
+              Resource: '*'
 
+    KMSKeyAlias:
+      Type: AWS::KMS::Alias
+      Properties:
+        AliasName: alias/auth0Key-${self:provider.stage}
+        TargetKeyId: !Ref KMSKey
+
+    Auth0Secret:
+      Type: AWS::SecretsManager::Secret
+      Properties:
+        Name: ${self:provider.environment.AUTH_0_SECRET_ID}
+        Description: Auth0 secret
+        KmsKeyId: !Ref KMSKey
     
 
