@@ -32,7 +32,7 @@ async function processImage(record: S3EventRecord) {
       })
       .promise()
   
-    const body = response.Body
+    const body = response.Body as string
     const image = await Jimp.read(body)
   
 
@@ -41,7 +41,7 @@ async function processImage(record: S3EventRecord) {
     image.resize(150, Jimp.AUTO)
 
     // Convert an image to a buffer that we can write to a different bucket
-    const convertedBuffer = await image.getBufferAsync(Jimp.AUTO)
+    const convertedBuffer = await image.getBufferAsync(Jimp.AUTO.toString());
 
     console.log("Writing resized image back to bucket")
     await s3

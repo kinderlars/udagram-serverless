@@ -51,10 +51,10 @@ provider:
         - s3:PutObject
         - s3:GetObject
       Resource: arn:aws:s3:::${self:provider.environment.IMAGES_S3_BUCKET}/*
-    - Effect: Allow
-      Action: 
-        - es:ESHttpPost
-      Resource: arn:aws:es:${self:provider.region}:*:domain/*
+    # - Effect: Allow
+    #   Action: 
+    #     - es:ESHttpPost
+    #   Resource: arn:aws:es:${self:provider.region}:*:domain/*
     - Effect: Allow
       Action:
         - s3:PutObject
@@ -98,7 +98,6 @@ functions:
           method: post
           path: groups
           cors: true
-          authorizer: RS256Auth
           reqValidatorName: RequestBodyValidator
           documentation:
             summary: Create a new group
@@ -121,7 +120,6 @@ functions:
           method: post
           path: groups/{groupId}/images
           cors: true
-          authorizer: RS256Auth
           reqValidatorName: RequestBodyValidator
           documentation:
             summary: Create a new image
@@ -171,14 +169,14 @@ functions:
       - websocket: 
           route: $disconnect
 
-  SyncWithElasticsearch:
-    environment:
-      ES_ENDPOINT: !GetAtt ImagesSearch.DomainEndpoint
-    handler: src/lambda/dynamoDB/elasticSearchSync.handler
-    events:
-      - stream: 
-          type: dynamodb
-          arn: !GetAtt ImagesDynamoDBTable.StreamArn
+  # SyncWithElasticsearch:
+  #   environment:
+  #     ES_ENDPOINT: !GetAtt ImagesSearch.DomainEndpoint
+  #   handler: src/lambda/dynamoDB/elasticSearchSync.handler
+  #   events:
+  #     - stream: 
+  #         type: dynamodb
+  #         arn: !GetAtt ImagesDynamoDBTable.StreamArn
 
 resources:
   Resources:
