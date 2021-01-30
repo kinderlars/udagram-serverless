@@ -23,6 +23,7 @@ export const handler: APIGatewayProxyHandler = async (event: APIGatewayProxyEven
   const newItem = {
     id: itemId,
     userId: getUserId(jwtToken),
+    timestamp: new Date().toISOString(),
     ...parsedBody
   }
 

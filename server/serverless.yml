@@ -5,19 +5,20 @@ plugins:
   - serverless-reqvalidator-plugin
   - serverless-aws-documentation
   - serverless-plugin-canary-deployments
+  - serverless-iam-roles-per-function
 # Add these plugins in case you want to run serverless offline with local Dynamodb
 #  - serverless-dynamodb-local
 #  - serverless-offline
 
-provider:
+package:
+  individually: true
 
+provider:
   tracing:
     lambda: true
     apiGateway: true
-
   name: aws
   runtime: nodejs12.x
-
   stage: ${opt:stage, 'dev'}
   region: ${opt:region, 'eu-central-1'}
   apiGateway:
@@ -152,6 +153,16 @@ functions:
           method: get
           path: groups/{groupId}/images
           cors: true
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:Query
+        Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.IMAGES_TABLE}
+      - Effect: Allow
+        Action:
+          - dynamodb:GetItem
+        Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.GROUPS_TABLE}
+
 
   CreateImage:
     handler: src/lambda/http/createImage.handler
